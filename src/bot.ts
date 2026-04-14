@@ -40,6 +40,7 @@ function buildHelpText(modules: BotModule[]): string {
     "Send any message to chat with Claude Code. I'll show a live status while Claude works.\n",
     "/cancel — stop current request",
     "/clear — start a new conversation",
+    "/switch\\_session <id> — attach to an existing Claude session",
     "/reload — reload modules",
     "/help — show this message",
   ];
@@ -225,6 +226,8 @@ export function createBot(config: BotConfig, options: CreateBotOptions = {}): Bo
       return;
     }
 
+    console.log(`[claude-telegram] [user:${userId}] Request: ${finalMessage.slice(0, 100)}`);
+
     // Send placeholder message
     let statusMsg;
     try {
@@ -281,6 +284,8 @@ export function createBot(config: BotConfig, options: CreateBotOptions = {}): Bo
       }
 
       const finalResult = await runAfterClaudeHooks(ctx, result);
+
+      console.log(`[claude-telegram] [user:${userId}] Response: ${(finalResult.output || finalResult.error || "").slice(0, 100)}`);
 
       if (finalResult.success && finalResult.output) {
         const parts: string[] = [];
@@ -476,6 +481,27 @@ export function createBot(config: BotConfig, options: CreateBotOptions = {}): Bo
 
     sessionStore.resetSession(userId);
     await ctx.reply("Conversation cleared. Claude won't remember previous messages.");
+  });
+
+  bot.command("switch_session", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const text = ctx.message?.text ?? "";
+    const sessionId = text.replace(/^\/switch_session\s*/, "").trim();
+
+    if (!sessionId) {
+      await ctx.reply("Usage: /switch_session <session-id>");
+      return;
+    }
+
+    if (busy.has(userId)) {
+      await ctx.reply("Can't switch while a request is running. /cancel first.");
+      return;
+    }
+
+    sessionStore.setSession(userId, sessionId);
+    await ctx.reply(`Switched to session ${sessionId}`);
   });
 
   // --- Text message handler ---

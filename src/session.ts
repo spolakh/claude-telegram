@@ -99,6 +99,14 @@ export class SessionStore {
   }
 
   /**
+   * Switch to a specific session ID (e.g., to resume an existing session).
+   */
+  setSession(userId: number, sessionId: string): void {
+    this.sessions[String(userId)] = sessionId;
+    this.save();
+  }
+
+  /**
    * Mark a session as needing a fresh start (e.g., after resume failure).
    * Replaces the session with a new random UUID.
    */
